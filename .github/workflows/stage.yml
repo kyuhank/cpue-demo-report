@@ -7,9 +7,10 @@ on:
         required: true
 permissions:
   contents: read
+  actions: read
 jobs:
   run:
-    uses: kyuhank/cpue-actions-demo/.github/workflows/execute-stage.yml@d61aa3a06f3d203a1ae988603e356383e9030a9f
+    uses: kyuhank/cpue-actions-demo/.github/workflows/execute-stage.yml@6dab4e7442ef546aff9f8b5f6631e0ab6345e953
     with:
       stage: ${{ inputs.stage }}
       module: report
