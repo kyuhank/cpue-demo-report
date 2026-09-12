@@ -1,0 +1,16 @@
+name: Publish site
+
+on:
+  push:
+    branches: [main]
+    paths: ['docs/**', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  pages:
+    uses: kyuhank/cpue-actions-demo/.github/workflows/publish-pages.yml@5e1fd0ad4465e0fc4e0289f9b3b0583edca5e4cd
