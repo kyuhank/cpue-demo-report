@@ -1,7 +1,10 @@
-# Report and reproduction
+# Assessment report
 
-Builds the report with its data snapshot, exact code identities and downloadable replay package.
+Build a short assessment report with the information needed to reproduce its results.
 
-Part of the [CPUE workflow demonstration](https://github.com/kyuhank/cpue-actions-demo). The central runner retrieves a locked commit, supplies shared model utilities and records inputs, outputs and provenance. All example data are synthetic.
+- **Inputs:** Assessment comparisons and the recorded inputs for each job.
+- **Outputs:** An HTML report and a downloadable bundle containing the synthetic data, code, settings, software references and reference results.
 
-[HTML job outputs](https://kyuhank.github.io/cpue-demo-report/). Results are selected by run ID and served from the recorded execution artifacts.
+Part of the [CPUE workflow demo](https://github.com/kyuhank/cpue-actions-demo), using synthetic data and toy models. Each run records the exact code commit and input/output hashes.
+
+[Run the demo](https://kyuhank.github.io/cpue-actions-demo/) · [View job outputs](https://kyuhank.github.io/cpue-demo-report/)
