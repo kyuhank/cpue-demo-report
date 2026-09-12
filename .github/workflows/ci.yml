@@ -7,8 +7,8 @@ permissions:
   contents: read
 jobs:
   check:
-    uses: kyuhank/cpue-actions-demo/.github/workflows/module-check.yml@d61aa3a06f3d203a1ae988603e356383e9030a9f
+    uses: kyuhank/cpue-actions-demo/.github/workflows/module-check.yml@db2b3a8e59ac88fb11a3763d23ee48e82d883570
     with:
       repository: ${{ github.repository }}
       commit: ${{ github.sha }}
-      harness: d61aa3a06f3d203a1ae988603e356383e9030a9f
+      harness: db2b3a8e59ac88fb11a3763d23ee48e82d883570
