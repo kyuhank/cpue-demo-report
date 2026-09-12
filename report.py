@@ -47,6 +47,14 @@ manifest['configuration'] = {
     'git_commit': os.getenv('TOY_DATA_COMMIT', manifest.get('workflow_plan', {}).get('trigger_commit', 'unversioned-local-settings')),
     'stage_settings': {key: record['settings'] for key, record in manifest.get('workflow_plan', {}).get('stages', {}).items()},
 }
+origin = manifest.get('workflow_plan', {}).get('stages', {}).get('extract', {})
+manifest['extraction_lineage'] = {
+    'snapshot_sha256': manifest['source_sha256'],
+    'sql_repository': origin.get('origin_repository', manifest.get('code_repository', 'kyuhank/cpue-actions-demo')),
+    'sql_commit': origin.get('origin_code_commit', manifest.get('extraction_code_commit', manifest['git_commit'])),
+    'queries': manifest.get('extraction_queries', {'extract.sql': manifest['query_sha256']}),
+    'parameters': {}, 'outputs': manifest.get('extraction_outputs', {}),
+}
 attachments = runpy.run_path(str(Path(__file__).with_name('reproduction.py')))['build'](Path(__file__).resolve().parents[1], OUT, manifest)
 
 
@@ -77,6 +85,23 @@ if qc:
         + str(qc['rule_version']) + ' · SQL function SHA-256: <code>' + html.escape(qc['rules_sha256']) + '</code>.</p>')
 stats = manifest.get('extraction', {})
 extraction = ''.join(f'<div class="stat"><b>{value:,}</b><span>{label}</span></div>' for label, value in [('sets retained', stats.get('retained_rows', manifest['rows'])), ('vessels', stats.get('vessels', 4)), ('hooks', stats.get('total_hooks', 0)), ('zero-catch sets retained', stats.get('zero_catch_sets', 0))])
+lineage = manifest['extraction_lineage']
+query_blocks = []
+for name, expected in lineage['queries'].items():
+    path = OUT / name
+    if not path.exists():
+        path = Path(__file__).with_name(name)
+    sql = path.read_bytes()
+    if hashlib.sha256(sql).hexdigest() != expected:
+        raise ValueError('The recorded extraction SQL does not match its hash: ' + name)
+    query_blocks.append('<h3>' + html.escape(name) + '</h3><pre>' + html.escape(sql.decode()) + '</pre><p>SHA-256: <code>' + expected + '</code></p>')
+output_rows = ''.join('<tr><td>' + html.escape(name) + '</td><td><code>' + html.escape(str(digest)) + '</code></td></tr>' for name, digest in lineage['outputs'].items())
+query_record = ('<div class="lineage"><b>Database snapshot</b><span>→</span><b>Versioned SQL</b><span>→</span><b>Checked extract</b></div>'
+    '<details id="extraction-sql"><summary>View the executed SQL and extraction identities</summary>'
+    '<p>The queries run against the saved SQLite snapshot. No external query parameters are used in this example.</p>'
+    '<p>Snapshot SHA-256: <code>' + lineage['snapshot_sha256'] + '</code></p>'
+    '<p>SQL source: ' + commit_link(lineage['sql_repository'], lineage['sql_commit']) + '</p>'
+    + ''.join(query_blocks) + '<table><tr><th>Extracted file</th><th>SHA-256</th></tr>' + output_rows + '</table></details>')
 diagnostics = json.loads((OUT / 'cpue-diagnostics.json').read_text())
 diagnostic_rows = ''.join(f"<tr><td>{labels[x['choice']]}</td><td>{x['parameters']}</td><td>{x['deviance']:.1f}</td><td>{x['pearson_dispersion']:.3f}</td></tr>" for x in diagnostics)
 parameters = ''.join(f"<tr><td>{labels[x['choice']]}</td><td>{float(x['R0']):,.1f}</td><td>{float(x['q']):.6f}</td><td>{float(x['M']):.2f}</td><td>{float(x['log_index_SSE']):.5f}</td></tr>" for x in rows)
@@ -104,11 +129,11 @@ if manifest.get('workflow_plan'):
     update_rows = ''.join('<tr><td>' + html.escape(key) + '</td><td>' + ('Generated' if record['action'] == 'run' else 'Reused unchanged') + '</td><td><code>' + html.escape(str(record['origin_run'])) + '</code></td><td>' + commit_link(record.get('origin_repository', code_repository), record.get('origin_code_commit', manifest['git_commit'])) + '<br>' + html.escape(record.get('origin_branch') or '') + '</td><td><code>' + html.escape(json.dumps(record['settings'])) + '</code></td></tr>' for key, record in plan['stages'].items())
     update_record = f'<h2>This update: {rerun} stages executed · {len(plan["stages"])-rerun} reused</h2><p>Changed settings invalidate their dependent stages. Reused results retain their original code commit, run and checksums.</p><details><summary>Trace each stage to its source</summary><table><tr><th>Stage</th><th>Output</th><th>Origin run</th><th>Origin code commit</th><th>Stage settings</th></tr>{update_rows}</table></details>'
 content = f'''<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>From a data update to a reviewable result</title>
-<style>*{{box-sizing:border-box}}body{{margin:0;background:#fafcfc;color:#001743;font:17px/1.55 Arial,sans-serif}}main{{max-width:1120px;margin:auto;padding:45px 35px}}h1{{font:44px/1.15 Georgia,serif;margin:15px 0 25px}}h2{{font-size:26px;margin:35px 0 16px}}.eyebrow{{color:#0085ca;font-size:13px;letter-spacing:2px}}.notice{{background:#eaf5f8;border-left:4px solid #0085ca;padding:15px 20px;color:#405b70}}.stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin:25px 0}}.stat{{border-top:2px solid #0085ca;padding-top:17px}}.stat b{{display:block;font-size:30px}}.stat span{{font-size:15px;color:#536b7b}}.meta{{font-weight:bold;margin:25px 0}}.plots{{display:grid;grid-template-columns:1fr 1fr;gap:22px}}.plots svg{{width:100%;height:auto}}table{{border-collapse:collapse;width:100%;margin:20px 0}}th,td{{text-align:left;padding:12px;border-bottom:1px solid #d8e5ea}}code{{font-size:13px;overflow-wrap:anywhere}}.trail th{{width:195px}}a{{color:#0085ca}}details{{margin:18px 0}}summary{{cursor:pointer;color:#0085ca;font-weight:bold}}.downloads{{display:flex;flex-wrap:wrap;gap:12px;margin:22px 0}}.downloads a{{display:block;background:#eaf5f8;border:1px solid #bedbe7;border-radius:7px;padding:12px 16px;text-decoration:none;font-weight:bold}}p{{color:#536b7b}}@media(max-width:750px){{.plots{{grid-template-columns:1fr}}h1{{font-size:32px}}main{{padding:25px 18px}}}}</style>
+<style>*{{box-sizing:border-box}}body{{margin:0;background:#fafcfc;color:#001743;font:17px/1.55 Arial,sans-serif}}main{{max-width:1120px;margin:auto;padding:45px 35px}}h1{{font:44px/1.15 Georgia,serif;margin:15px 0 25px}}h2{{font-size:26px;margin:35px 0 16px}}.eyebrow{{color:#0085ca;font-size:13px;letter-spacing:2px}}.notice{{background:#eaf5f8;border-left:4px solid #0085ca;padding:15px 20px;color:#405b70}}.stats{{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin:25px 0}}.stat{{border-top:2px solid #0085ca;padding-top:17px}}.stat b{{display:block;font-size:30px}}.stat span{{font-size:15px;color:#536b7b}}.meta{{font-weight:bold;margin:25px 0}}.plots{{display:grid;grid-template-columns:1fr 1fr;gap:22px}}.plots svg{{width:100%;height:auto}}table{{border-collapse:collapse;width:100%;margin:20px 0}}th,td{{text-align:left;padding:12px;border-bottom:1px solid #d8e5ea}}code{{font-size:13px;overflow-wrap:anywhere}}.trail th{{width:195px}}a{{color:#0085ca}}details{{margin:18px 0}}summary{{cursor:pointer;color:#0085ca;font-weight:bold}}.downloads{{display:flex;flex-wrap:wrap;gap:12px;margin:22px 0}}.downloads a{{display:block;background:#eaf5f8;border:1px solid #bedbe7;border-radius:7px;padding:12px 16px;text-decoration:none;font-weight:bold}}.lineage{{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px;background:#edf5f9;border-radius:8px}}.lineage b{{font-size:17px}}.lineage span{{color:#0085ca}}pre{{background:#edf5f9;border-radius:7px;padding:16px;white-space:pre-wrap;font-size:14px;overflow-wrap:anywhere}}p{{color:#536b7b}}@media(max-width:750px){{.plots{{grid-template-columns:1fr}}h1{{font-size:32px}}main{{padding:25px 18px}}}}</style>
 <main><div class="eyebrow">SYNTHETIC LONGLINE WORKFLOW · DRAFT FOR REVIEW</div><h1>From a data update<br>to a reviewable result.</h1>
 <div class="notice">Wholly synthetic data and toy models. No management advice.</div>
 <div class="meta">Data through {manifest['last_year']} · {manifest['rows']:,} sets · Run {manifest['github_run_id']}, attempt {manifest['github_run_attempt']}</div>
-{intake_record}{update_record}<h2>01 · Extract and check the data</h2><div class="stats">{extraction}</div><p>Retained {manifest['rows']:,} of {stats.get('input_rows', manifest['rows']):,} input sets. Checked unique set identities, valid effort and catch, and matching annual catch and CPUE coverage. The extraction query and snapshot hashes are recorded below.</p>
+{intake_record}{update_record}<h2>01 · Extract and check the data</h2><div class="stats">{extraction}</div><p>Retained {manifest['rows']:,} of {stats.get('input_rows', manifest['rows']):,} input sets. Checked unique set identities, valid effort and catch, and matching annual catch and CPUE coverage. The extraction query and snapshot hashes are recorded below.</p>{query_record}
 <h2>02 · Standardise CPUE and compare choices</h2><div class="plots">{plots}</div><table><tr><th>CPUE choice</th><th>Natural mortality M</th><th>Latest CPUE / first year</th><th>Latest toy SB/SB₀</th><th>Log-index SSE</th></tr>{values}</table>
 <p>The synthetic records include annual availability variation, changing effort and overdispersed set catches. The fleet shifts toward vessels with higher catchability. Including or omitting a vessel effect changes the index. Both choices use a Poisson log link, an effort offset, zero catches and equal vessel prediction weights. Each index is scaled to its first year.</p>
 <table><tr><th>Poisson CPUE model</th><th>Parameters</th><th>Deviance</th><th>Pearson dispersion</th></tr>{diagnostic_rows}</table><p>Diagnostics are calculated from the set-level fitted values. Overdispersion is intentional in the generated data; these simple Poisson mean models do not provide uncertainty estimates. The year + vessel model uses iterative proportional fitting; year only uses the analytic Poisson group means.</p>
