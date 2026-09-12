@@ -41,6 +41,11 @@ manifest['dependencies'] = {'extract': [], 'cpue_vessel': ['extract'], 'cpue_yea
     **{case['key']: ['prepare_vessel' if case['choice'] == 'vessel_adjusted' else 'prepare_year'] for case in case_definitions},
     'synthesis': [case['key'] for case in case_definitions], 'report': ['synthesis']}
 manifest['execution'] = ('One GitHub runner; independent CPUE, input-preparation and assessment analyses run in parallel; matching outputs are reused' if manifest.get('execution_mode') == 'parallel_steps' else '11 dependency-linked stages in one GitHub job') if 'collection' in manifest else 'local stages using the same case definitions'
+if manifest.get('execution_mode') == 'module_jobs':
+    manifest['execution'] = 'Each executed module uses its own GitHub runner and pinned container; dependency outputs are verified before use'
+checks = Path(__file__).resolve().parents[1] / 'module-checks.json'
+if checks.exists():
+    manifest['module_validation'] = json.loads(checks.read_text())
 manifest['report_format'] = 'standalone HTML; Python standard library'
 manifest['configuration'] = {
     'repository': os.getenv('TOY_DATA_REPOSITORY', manifest.get('code_repository', 'kyuhank/cpue-actions-demo')),

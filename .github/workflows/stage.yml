@@ -1,0 +1,15 @@
+name: report module
+on:
+  workflow_call:
+    inputs:
+      stage:
+        type: string
+        required: true
+permissions:
+  contents: read
+jobs:
+  run:
+    uses: kyuhank/cpue-actions-demo/.github/workflows/execute-stage.yml@d61aa3a06f3d203a1ae988603e356383e9030a9f
+    with:
+      stage: ${{ inputs.stage }}
+      module: report
