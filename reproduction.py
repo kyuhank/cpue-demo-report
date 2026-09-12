@@ -25,7 +25,7 @@ def build(root, out, manifest):
         raise ValueError('The report snapshot does not match the analysed data')
 
     files = {'data/toy-fishery.sqlite': snapshot}
-    for name in ('modules.lock.json', 'module-versions.json'):
+    for name in ('modules.lock.json', 'module-versions.json', 'module-branches.json'):
         if (root / name).exists():
             files[name] = (root / name).read_bytes()
     if manifest.get('data_release'):
@@ -41,6 +41,12 @@ def build(root, out, manifest):
             files['reproduce.py' if name == 'reproduce.py' else 'scripts/' + name] = path.read_bytes()
     if (root / 'run.py').exists():
         files['run.py'] = (root / 'run.py').read_bytes()
+
+    import os
+    selection = (root / os.getenv('TOY_STAGE_CONFIG', 'config/stages.json')).with_name('modules.json')
+    if selection.exists():
+        files['config/modules.json'] = selection.read_bytes()
+        manifest['module_selection'] = json.loads(selection.read_text())
 
     settings = {k: v for k, v in manifest['configuration']['stage_settings'].items() if v}
     files['config/stages.json'] = (json.dumps(settings, indent=2) + '\n').encode()
