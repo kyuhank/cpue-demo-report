@@ -1,0 +1,14 @@
+name: Module checks
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    uses: kyuhank/cpue-actions-demo/.github/workflows/module-check.yml@d61aa3a06f3d203a1ae988603e356383e9030a9f
+    with:
+      repository: ${{ github.repository }}
+      commit: ${{ github.sha }}
+      harness: d61aa3a06f3d203a1ae988603e356383e9030a9f

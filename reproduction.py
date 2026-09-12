@@ -25,7 +25,7 @@ def build(root, out, manifest):
         raise ValueError('The report snapshot does not match the analysed data')
 
     files = {'data/toy-fishery.sqlite': snapshot}
-    for name in ('modules.lock.json', 'module-versions.json', 'module-branches.json'):
+    for name in ('modules.lock.json', 'module-versions.json', 'module-branches.json', 'module-checks.json'):
         if (root / name).exists():
             files[name] = (root / name).read_bytes()
     if manifest.get('data_release'):
