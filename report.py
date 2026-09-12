@@ -40,6 +40,13 @@ manifest['dependencies'] = {'extract': [], 'cpue_vessel': ['extract'], 'cpue_yea
     'prepare_vessel': ['extract', 'cpue_vessel'], 'prepare_year': ['extract', 'cpue_year'],
     **{case['key']: ['prepare_vessel' if case['choice'] == 'vessel_adjusted' else 'prepare_year'] for case in case_definitions},
     'synthesis': [case['key'] for case in case_definitions], 'report': ['synthesis']}
+if manifest.get('workflow_plan'):
+    manifest['stages']=list(manifest['workflow_plan']['stages'])
+    manifest['dependencies']={key:value['parents'] for key,value in manifest['workflow_plan']['stages'].items()}
+manifest['intake_records']={}
+for key in ('submission','qc','ingest'):
+    record=Path(__file__).resolve().parents[1]/'stages'/key/'record.json'
+    if record.exists():manifest['intake_records'][key]=json.loads(record.read_text())
 manifest['execution'] = ('One GitHub runner; independent CPUE, input-preparation and assessment analyses run in parallel; matching outputs are reused' if manifest.get('execution_mode') == 'parallel_steps' else '11 dependency-linked stages in one GitHub job') if 'collection' in manifest else 'local stages using the same case definitions'
 if manifest.get('execution_mode') == 'module_jobs':
     manifest['execution'] = 'Each executed module uses its own GitHub runner and pinned container; dependency outputs are verified before use'
